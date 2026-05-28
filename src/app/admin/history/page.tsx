@@ -1,10 +1,11 @@
-import { createAdminSupabaseClient } from '@/lib/supabase-admin';
+import { createAdminSupabaseClient, isSupabaseConfigured } from '@/lib/supabase-admin';
+import { MOCK_DIAGNOSES } from '@/lib/mock-admin-data';
 import { StatusSelect } from './status-select';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminHistoryPage() {
-  let diagnoses: Array<{
+  type DiagnosisEntry = {
     id: string;
     seller_id: string;
     problem: string;
@@ -12,34 +13,46 @@ export default async function AdminHistoryPage() {
     sent_at: string;
     action_status: 'pending' | 'done' | 'not done';
     sellers: { name: string } | null;
-  }> = [];
-  let dbError: string | null = null;
+  };
 
-  try {
-    const supabase = createAdminSupabaseClient();
-    const { data, error } = await supabase
-      .from('diagnoses')
-      .select('id, seller_id, problem, recommended_action, sent_at, action_status, sellers(name)')
-      .order('sent_at', { ascending: false });
-    if (error) throw error;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    diagnoses = (data ?? []) as unknown as typeof diagnoses;
-  } catch (err) {
-    dbError = err instanceof Error ? err.message : 'Błąd połączenia z bazą danych';
+  let diagnoses: DiagnosisEntry[] = [];
+  let isMock = false;
+
+  if (!isSupabaseConfigured()) {
+    isMock = true;
+    diagnoses = MOCK_DIAGNOSES;
+  } else {
+    try {
+      const supabase = createAdminSupabaseClient();
+      const { data, error } = await supabase
+        .from('diagnoses')
+        .select('id, seller_id, problem, recommended_action, sent_at, action_status, sellers(name)')
+        .order('sent_at', { ascending: false });
+      if (error) throw error;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      diagnoses = (data ?? []) as unknown as DiagnosisEntry[];
+    } catch {
+      isMock = true;
+      diagnoses = MOCK_DIAGNOSES;
+    }
   }
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">Historia wysłanych diagnoz</h1>
-        <p className="text-sm text-gray-500 mt-1">Wszystkie interwencje i ich status</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">Historia wysłanych diagnoz</h1>
+          <p className="text-sm text-gray-500 mt-1">Wszystkie interwencje i ich status</p>
+        </div>
+        {isMock && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+            Dane demo
+          </span>
+        )}
       </div>
 
-      {dbError ? (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
-          {dbError}
-        </div>
-      ) : diagnoses.length === 0 ? (
+      {diagnoses.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-lg p-8 text-center text-sm text-gray-500">
           Brak wysłanych diagnoz
         </div>

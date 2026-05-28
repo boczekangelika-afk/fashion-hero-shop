@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { createAdminSupabaseClient, type SellerRow } from '@/lib/supabase-admin';
+import { createAdminSupabaseClient, isSupabaseConfigured, type SellerRow } from '@/lib/supabase-admin';
+import { MOCK_SELLERS } from '@/lib/mock-admin-data';
 import { DiagnosisForm } from './diagnosis-form';
 
 export const dynamic = 'force-dynamic';
@@ -13,22 +14,28 @@ export default async function SellerDiagnosisPage({ params }: Props) {
   const { id } = await params;
 
   let seller: SellerRow | null = null;
-  let dbError: string | null = null;
+  let isMock = false;
 
-  try {
-    const supabase = createAdminSupabaseClient();
-    const { data, error } = await supabase
-      .from('sellers')
-      .select('*')
-      .eq('id', id)
-      .single();
-    if (error) throw error;
-    seller = data as SellerRow;
-  } catch {
-    dbError = 'Nie można załadować danych sprzedawcy';
+  if (!isSupabaseConfigured()) {
+    isMock = true;
+    seller = MOCK_SELLERS.find((s) => s.id === id) ?? null;
+  } else {
+    try {
+      const supabase = createAdminSupabaseClient();
+      const { data, error } = await supabase
+        .from('sellers')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (error) throw error;
+      seller = data as SellerRow;
+    } catch {
+      isMock = true;
+      seller = MOCK_SELLERS.find((s) => s.id === id) ?? null;
+    }
   }
 
-  if (!seller && !dbError) notFound();
+  if (!seller) notFound();
 
   return (
     <div className="max-w-2xl">
@@ -41,12 +48,14 @@ export default async function SellerDiagnosisPage({ params }: Props) {
         </Link>
       </div>
 
-      {dbError ? (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
-          {dbError}
-        </div>
-      ) : seller ? (
+      {seller ? (
         <>
+          {isMock && (
+            <div className="mb-4 inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+              Dane demo — email nie zostanie wysłany
+            </div>
+          )}
           <div className="bg-white border border-gray-200 rounded-lg p-5 mb-6">
             <div className="flex items-start justify-between">
               <div>

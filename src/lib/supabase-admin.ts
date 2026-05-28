@@ -24,12 +24,16 @@ export interface DiagnosisRow {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AdminSupabaseClient = SupabaseClient<any, 'public', any>;
 
+export function isSupabaseConfigured(): boolean {
+  return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
 export function createAdminSupabaseClient(): AdminSupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !key) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars');
+    throw new Error('Supabase not configured');
   }
 
   return createClient(url, key);
